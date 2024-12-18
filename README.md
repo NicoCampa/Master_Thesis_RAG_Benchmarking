@@ -18,3 +18,5 @@ This project benchmarks RAG systems on:
 - **Evaluation Frameworks**:
   - **RAGAS**: Faithfulness, Answer Relevance, Context Precision.
   - **RGB**: Noise Robustness, Integration, Counterfactual Analysis.
+
+![Alt text](/images/pipelineRAG.png.png)
