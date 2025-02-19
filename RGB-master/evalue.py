@@ -151,7 +151,7 @@ if __name__ == '__main__':
         choices=['en','zh','en_int','zh_int','en_fact','zh_fact']
     )
     parser.add_argument(
-        '--api_key', type=str, default='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',
+        '--api_key', type=str, default='',
         help='api key of chatgpt'
     )
     parser.add_argument(
