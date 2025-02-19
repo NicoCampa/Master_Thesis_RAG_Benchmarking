@@ -4,9 +4,6 @@
 
 This project provides a comprehensive benchmarking framework for RAG systems focused on:
 
-1. **Single-Hop QA** – using Natural Questions  
-2. **Multi-Hop QA** – using HotpotQA
-
 ## Table of Contents
 
 - [Directory Structure](#directory-structure)
