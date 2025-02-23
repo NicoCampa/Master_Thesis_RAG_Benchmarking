@@ -154,6 +154,8 @@ def main():
     parser.add_argument('--correct_rate', type=float, default=0.0, help='rate of correct passages')
     parser.add_argument('--factchecking', type=bool, default=False, help='whether to perform fact checking')
     parser.add_argument('--debug', action='store_true', help='enable debug mode')
+    parser.add_argument('--temp', type=float, default=0.7, help='temperature for the model')
+    parser.add_argument('--passage_num', type=int, default=5, help='number of passages to use')
     args = parser.parse_args()
 
     model_name = args.ollama_model

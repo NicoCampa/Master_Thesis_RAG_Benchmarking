@@ -68,7 +68,7 @@ Master_Thesis_RAG_Benchmarking is a comprehensive benchmarking framework for Ret
 ### RAG Benchmark Pipeline
 Run the RAG pipeline to evaluate retrieval strategies combined with a generative model:
 ```bash
-python benchmarks/Ragas/Ragas.py --ollama_model deepseek-r1:1.5b --retrieval_strategy hybrid
+python -m benchmarks.Ragas.Ragas --ollama_model deepseek-r1:1.5b --retrieval_strategy hybrid
 ```
 
 This script will:
