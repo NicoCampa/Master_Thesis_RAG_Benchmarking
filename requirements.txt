@@ -3,13 +3,10 @@ langchain-core==0.3.37
 langchain-community==0.3.18
 langchain-ollama==0.2.3
 langchain-openai==0.3.6
-langchain-text-splitters==0.0.2
 
 # Vector store and embeddings
 chromadb==0.5.3
-chroma-hnswlib==0.7.3
 rank-bm25==0.2.2
-sentence-transformers==3.0.1
 
 # RAG evaluation
 ragas==0.1.9
@@ -19,13 +16,9 @@ pandas==2.2.3
 datasets==3.3.2
 matplotlib==3.10.0
 seaborn==0.13.2
-numpy==1.26.4
 tqdm==4.66.4
-rapidfuzz==3.9.3
-transformers==4.42.3
 
 # API and environment
 python-dotenv==1.0.1
 openai==1.63.2
 ollama==0.4.7
-requests==2.32.3
