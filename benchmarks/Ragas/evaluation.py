@@ -10,6 +10,7 @@ import textwrap
 import numpy as np
 from typing import Dict
 import matplotlib.colors as mcolors
+import time
 
 def clean_thinks(dataset: Dataset) -> Dataset:
     """
@@ -28,13 +29,18 @@ def evaluate_results(cleaned_dataset, evaluator_llm):
     print("Starting evaluation of results with metrics...")
     from ragas import evaluate
     from ragas.metrics import context_precision, context_recall, faithfulness, answer_relevancy
-    result = evaluate(
-        dataset=cleaned_dataset,
-        metrics=[context_precision, context_recall, faithfulness, answer_relevancy],
-        llm=evaluator_llm
-    )
-    print("Evaluation completed.")
-    return result
+
+    try:
+        result = evaluate(
+            dataset=cleaned_dataset,
+            metrics=[context_precision, context_recall, faithfulness, answer_relevancy],
+            llm=evaluator_llm
+        )
+        print("Evaluation completed.")
+        return result
+    except Exception as e:
+        print(f"Error during evaluation: {str(e)}")
+        raise e
 
 def save_metrics(result, filename):
     """
@@ -194,10 +200,41 @@ def plot_split_heatmaps(result, base_filename, questions_per_plot=15):
             base_filename.replace('.png', f'_part{i+1}.png')
         )
 
+def get_color_scheme(strategy):
+    """
+    Returns color scheme based on retrieval strategy.
+    """
+    schemes = {
+        'dense': {
+            'main': '#d35400',  # Strong orange
+            'fill': '#ffeee6',  # Light orange
+            'edge': '#a04000'   # Dark orange
+        },
+        'hybrid': {
+            'main': '#0d472e',  # Strong green
+            'fill': '#e1f5e9',  # Light green
+            'edge': '#0a3622'   # Dark green
+        },
+        'sparse': {
+            'main': '#5b2c6f',  # Strong purple
+            'fill': '#f4e6f5',  # Light purple
+            'edge': '#4a235a'   # Dark purple
+        }
+    }
+    return schemes.get(strategy, schemes['hybrid'])  # Default to hybrid if strategy not found
+
 def plot_average_metrics(result, image_filename):
     """
     Plot average metrics using a radar chart with improved aesthetics.
     """
+    # Get model name and retrieval strategy from filename
+    filename_parts = os.path.basename(image_filename).split('_')
+    model_name = filename_parts[0]
+    retrieval_strategy = filename_parts[1]  # This will get 'hybrid' from the filename
+    
+    # Get color scheme based on strategy
+    colors = get_color_scheme(retrieval_strategy)
+    
     # Convert to DataFrame if it's not already one
     df = result if isinstance(result, pd.DataFrame) else result.to_pandas()
     
@@ -206,7 +243,7 @@ def plot_average_metrics(result, image_filename):
     avg_scores = df[metrics].mean()
     
     # Set up the figure with white background
-    plt.figure(figsize=(12, 12), facecolor='white')
+    plt.figure(figsize=(14, 14), facecolor='white')
     ax = plt.subplot(111, projection='polar')
     ax.set_facecolor('white')
 
@@ -215,24 +252,24 @@ def plot_average_metrics(result, image_filename):
     values = np.concatenate((avg_scores, [avg_scores[0]]))
     angles = np.concatenate((angles, [angles[0]]))
 
-    # Plot data with improved visibility
-    ax.fill(angles, values, color='#e8f5e9', alpha=0.25)
-    ax.plot(angles, values, 'o-', linewidth=3, color='#1b5e20')
+    # Plot data with strategy-specific colors
+    ax.fill(angles, values, color=colors['fill'], alpha=0.4)
+    ax.plot(angles, values, 'o-', linewidth=4, color=colors['main'], markersize=10)
     
     # Add value annotations with better visibility
     for angle, value in zip(angles[:-1], values[:-1]):
         text_radius = value + 0.05
-        # Add rounded box around values
         ax.text(angle, text_radius, f'{value:.3f}', 
                 ha='center', va='center',
                 color='black',
-                fontsize=13,
+                fontsize=16,
                 fontweight='bold',
                 bbox=dict(
                     facecolor='white',
-                    edgecolor='#2d6a4f',
-                    boxstyle='round,pad=0.5',
-                    alpha=0.9
+                    edgecolor=colors['edge'],
+                    boxstyle='round,pad=0.6',
+                    alpha=0.95,
+                    linewidth=2
                 ))
     
     # Set chart properties with improved formatting
@@ -240,7 +277,7 @@ def plot_average_metrics(result, image_filename):
     metric_labels = [m.replace('_', '\n').title() for m in metrics]
     ax.set_xticklabels(metric_labels,
                        color='black',
-                       fontsize=14,
+                       fontsize=18,
                        fontweight='bold')
     
     # Remove radial labels and set limits
@@ -248,15 +285,17 @@ def plot_average_metrics(result, image_filename):
     ax.set_ylim(0, 1)
     
     # Add subtle grid
-    ax.grid(True, color='#cccccc', alpha=0.3)
+    ax.grid(True, color='#cccccc', alpha=0.3, linewidth=1.5)
     
-    # Add title with improved formatting
-    model_name = os.path.basename(image_filename).split('_')[0]
-    plt.title('RAG Evaluation Metrics\n' + model_name, 
+    # Format model name for better display
+    model_display = model_name.replace('-', ' ').replace(':', '\n')
+    
+    # Add formatted title
+    plt.title(f'{model_display}\n{retrieval_strategy}', 
               color='black',
-              pad=30,
-              y=1.08,
-              fontsize=18,
+              pad=40,
+              y=1.1,
+              fontsize=24,
               fontweight='bold')
     
     # Save figure
