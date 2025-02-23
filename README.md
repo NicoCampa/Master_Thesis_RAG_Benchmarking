@@ -1,6 +1,6 @@
-# MasterThesisRAG
+# Master_Thesis_RAG_Benchmarking
 
-MasterThesisRAG is a comprehensive benchmarking framework for Retrieval-Augmented Generation (RAG) systems. It evaluates multiple retrieval strategies and incorporates various generative models to assess performance across key metrics such as faithfulness, answer relevancy, and context precision.
+Master_Thesis_RAG_Benchmarking is a comprehensive benchmarking framework for Retrieval-Augmented Generation (RAG) systems. It evaluates multiple retrieval strategies and incorporates various generative models to assess performance across key metrics such as faithfulness, answer relevancy, and context precision.
 
 ## Table of Contents
 - [Features](#features)
@@ -43,8 +43,8 @@ MasterThesisRAG is a comprehensive benchmarking framework for Retrieval-Augmente
 ## Installation
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/yourusername/MasterThesisRAG.git
-   cd MasterThesisRAG
+   git clone https://github.com/yourusername/Master_Thesis_RAG_Benchmarking.git
+   cd Master_Thesis_RAG_Benchmarking
    ```
 
 2. **Create and activate the Python virtual environment:**
