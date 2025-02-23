@@ -8,7 +8,6 @@ Master_Thesis_RAG_Benchmarking is a comprehensive benchmarking framework for Ret
 - [Installation](#installation)
 - [Usage](#usage)
 - [Notebooks](#notebooks)
-- [Contributing](#contributing)
 - [License](#license)
 
 ## Features
@@ -90,12 +89,6 @@ Additional options (like fact-checking and debug mode) are available. Use the `-
 For an interactive exploration of the benchmarking process, check out:
 - **Ragas_benchmark.ipynb**: Walkthrough of the RAG benchmark pipeline.
 - **RGB_benchmark.ipynb**: Interactive setup and evaluation using local models.
-
-## Contributing
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute:
-- Report bugs or request features
-- Help improve documentation
-- Open pull requests for enhancements
 
 ## License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
