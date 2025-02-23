@@ -100,7 +100,7 @@ def main():
     print(json.dumps(first_entry, indent=4))
     
     print("Cleaning answers to remove <think> sections...")
-    from benchmarks.Ragas.evaluation import clean_thinks, evaluate_results, save_metrics, plot_heatmap
+    from benchmarks.Ragas.evaluation import clean_thinks, evaluate_results, save_metrics, plot_heatmap, plot_average_metrics
     cleaned_dataset = clean_thinks(dataset)
     
     print("Evaluating dataset with RAG metrics...")
@@ -121,9 +121,9 @@ def main():
     output_json = os.path.join("results", "Ragas", "metrics", f"{args.ollama_model}_{args.retrieval_strategy}_results.json")
     save_metrics(result, output_json)
     
-    # Plot heatmap and save the image file in results/Ragas/images
-    image_filename = os.path.join("results", "Ragas", "images", f"{args.ollama_model}_{args.retrieval_strategy}.png")
-    plot_heatmap(result, image_filename)
+    # Plot only the average metrics radar chart
+    image_filename = os.path.join("results", "Ragas", "images", f"{args.ollama_model}_{args.retrieval_strategy}_radar_average.png")
+    plot_average_metrics(result, image_filename)
     
     print("RAG benchmark pipeline completed.")
 

@@ -1,11 +1,31 @@
-question,ground_truth
-"Which NeoSynth project in 2024 focused on improving the interpretability of AI systems in urban traffic management?","AI ClearPath"
-"In 2023, did NeoSynth's GreenFlow platform achieve higher adoption in Germany or the United States?","Germany"
-"Did NeoSynth announce its partnership with GreenTech Innovators before launching the HealthSphere platform?","Yes"
-"What percentage of cities in the United States adopted NeoSynth's GreenFlow platform in 2023?","45%"
-"Which company partnered with NeoSynth in 2024 to integrate AI into public transportation in underdeveloped regions?","VisionAI Labs"
-"What is the name of NeoSynth’s platform for personalized healthcare launched in 2023?","HealthSphere"
-"Which NeoSynth initiative in 2024 focused on reducing bias in autonomous vehicle algorithms?","Collaboration with TechRise University"
-"What percentage of cities in Germany adopted GreenFlow in 2023?","60%"
-"Does NeoSynth operate in the deep-sea exploration domain?","No"
-"What is the primary focus of the GreenFlow platform?","Optimizing energy distribution for smart cities"
+question;ground_truth
+What year was Acme Innovators Inc. founded?;2002
+Where was Acme Innovators Inc. founded?;Silicon Valley
+Who is the CEO of Acme Innovators Inc.?;Dr. Elena Ramirez
+What is the base model price of the Acme SmartPhone X?;$999
+What is the display size and resolution of the Acme SmartPhone X?;6.5-inch OLED with 4K resolution
+What is Acme Innovators Inc.’s profit margin as stated in the financial performance?;20 %
+What is the annual revenue of Acme Innovators Inc. for 2024?;Approximately $50 billion
+What is the battery capacity of the Acme SmartPhone X?;5000 mAh
+How many employees does Acme Innovators Inc. have globally?;Over 50,000
+What operating system is used by Acme Innovators’ devices?;AcmeOS
+Which Acme product is offered on a subscription basis at $49 per month?;Acme AI Medical Assistant
+What is the price range of the Acme UltraBook Pro?;$1,499 to $2,499
+Which Acme product features an always-on AMOLED screen?;Acme FitTrack Watch
+What functions does the Acme HomeLink system integrate in its smart home solution?;It integrates lighting, security, and climate control
+Which product features dual high-definition micro-displays and supports gesture recognition?;Acme AR Vision
+Which product priced below $1000 features an AI-driven camera system and a 5000 mAh battery?;Acme SmartPhone X
+Which product designed for professionals and creatives offers financing options and storage configurations up to 2TB?;Acme UltraBook Pro
+Which wearable product combines health tracking with smart home integration for real-time notifications?;Acme FitTrack Watch
+Which product that leverages ethical AI is offered as a subscription service for real-time medical diagnostics?;Acme AI Medical Assistant
+Which smart home product is priced at $199 and is part of Acme’s digital assistant lineup?;Acme Voice Home
+Which product priced at $799 integrates gesture recognition and augmented reality features?;Acme AR Vision
+Which product available for $299 features an always-on AMOLED screen along with advanced health monitoring sensors?;Acme FitTrack Watch
+What sustainability goal has Acme Innovators committed to, and which manufacturing process supports this goal?;Achieving net-zero emissions by 2035, supported by carbon-neutral production facilities
+Which product’s specifications include an octa-core AI-optimized chipset, wireless charging, and a 5000 mAh battery?;Acme SmartPhone X
+Which smart home solution is priced at $499, includes installation services, and integrates lighting, security, and climate control?;Acme HomeLink Starter Kit
+Which product lineup combines both AcmeOS and the Acme Cloud Suite to offer integrated hardware and software solutions?;Acme’s integrated consumer electronics lineup (e.g., SmartPhone X, UltraBook Pro, and Acme Tab series) that runs on AcmeOS and connects with the Acme Cloud Suite
+Which career opportunities at Acme Innovators are available beyond engineering roles?; Product Management, Sales and Marketing, Operations and Logistics, and Corporate Functions (Finance, HR, Legal, Corporate Communications)
+Which community initiative at Acme Innovators focuses on reducing electronic waste through comprehensive recycling programs and eco-friendly manufacturing?;Their recycling programs combined with green manufacturing initiatives
+Which accolade recognizing green technology initiatives has Acme Innovators received, and what renewable energy practice supports this recognition?;The accolade “Best Green Tech Company,” supported by powering over 80% of operations with renewable energy
+Which research and development focus area at Acme Innovators is linked to both AI-driven healthcare monitoring and the development of wearable health technologies?;Next-generation AI-driven healthcare monitoring
