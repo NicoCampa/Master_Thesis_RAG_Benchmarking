@@ -15,11 +15,40 @@ import time
 def clean_thinks(dataset: Dataset) -> Dataset:
     """
     Remove everything between <think> and </think> tags in the answer text.
+    Shows both original and cleaned answers for comparison.
     """
     df = pd.DataFrame(dataset)
+    
+    # Simple pattern to match exactly between <think> tags
     pattern = r'<think>.*?</think>'
+    
+    # Store original answer for comparison
+    original_answer = df['answer'].iloc[0]
+    
+    # Print original answer first
+    print("\nOriginal answer:")
+    print("-" * 50)
+    print(original_answer)
+    print("-" * 50)
+    
+    # Clean answers
     df['answer'] = df['answer'].apply(lambda x: re.sub(pattern, '', x, flags=re.DOTALL).strip())
-    print(f"\nCleaned answer:\n{df['answer'].iloc[0]}")
+    
+    # Store cleaned answer
+    cleaned_answer = df['answer'].iloc[0]
+    
+    # Print cleaned answer
+    print("\nCleaned answer:")
+    print("-" * 50)
+    print(cleaned_answer)
+    print("-" * 50)
+    
+    # Print if any changes were made
+    if original_answer != cleaned_answer:
+        print("\nNote: Changes were made - <think> tags were removed")
+    else:
+        print("\nNote: No <think> tags were found - answer unchanged")
+    
     return Dataset.from_pandas(df)
 
 def evaluate_results(cleaned_dataset, evaluator_llm):
@@ -225,85 +254,79 @@ def get_color_scheme(strategy):
 
 def plot_average_metrics(result, image_filename):
     """
-    Plot average metrics using a radar chart with improved aesthetics.
+    Plot average metrics using a radar chart with improved aesthetics and readability.
     """
     # Get model name and retrieval strategy from filename
     filename_parts = os.path.basename(image_filename).split('_')
     model_name = filename_parts[0]
-    retrieval_strategy = filename_parts[1]  # This will get 'hybrid' from the filename
+    retrieval_strategy = filename_parts[1]
     
-    # Get color scheme based on strategy
-    colors = get_color_scheme(retrieval_strategy)
-    
-    # Convert to DataFrame if it's not already one
     df = result if isinstance(result, pd.DataFrame) else result.to_pandas()
-    
-    # Calculate averages
     metrics = ["context_precision", "context_recall", "faithfulness", "answer_relevancy"]
     avg_scores = df[metrics].mean()
     
-    # Set up the figure with white background
-    plt.figure(figsize=(14, 14), facecolor='white')
+    # Set up the figure
+    plt.figure(figsize=(12, 12), facecolor='white')
     ax = plt.subplot(111, projection='polar')
     ax.set_facecolor('white')
 
-    # Prepare the radar chart
+    # Prepare data
     angles = np.linspace(0, 2*np.pi, len(metrics), endpoint=False)
     values = np.concatenate((avg_scores, [avg_scores[0]]))
     angles = np.concatenate((angles, [angles[0]]))
 
-    # Plot data with strategy-specific colors
-    ax.fill(angles, values, color=colors['fill'], alpha=0.4)
-    ax.plot(angles, values, 'o-', linewidth=4, color=colors['main'], markersize=10)
+    # Plot data
+    ax.fill(angles, values, color='#e1f5e9', alpha=0.25)  # Light green fill
+    ax.plot(angles, values, 'o-', linewidth=2, color='#0d472e', markersize=8)  # Dark green line
+
+    # Clear default labels
+    ax.set_xticklabels([])
     
-    # Add value annotations with better visibility
-    for angle, value in zip(angles[:-1], values[:-1]):
-        text_radius = value + 0.05
-        ax.text(angle, text_radius, f'{value:.3f}', 
-                ha='center', va='center',
-                color='black',
-                fontsize=16,
-                fontweight='bold',
-                bbox=dict(
-                    facecolor='white',
-                    edgecolor=colors['edge'],
-                    boxstyle='round,pad=0.6',
-                    alpha=0.95,
-                    linewidth=2
-                ))
+    # Add metric labels and value boxes at each point
+    for idx, (metric, value, angle) in enumerate(zip(metrics, avg_scores, angles)):
+        # Format metric label
+        metric_label = metric.replace('_', '\n').title()
+        
+        # Calculate label position
+        label_distance = 1.3
+        x = label_distance * np.cos(angle)
+        y = label_distance * np.sin(angle)
+        
+        # Add metric label
+        ha = 'center'
+        if abs(np.cos(angle)) > 0.5:
+            ha = 'left' if np.cos(angle) < 0 else 'right'
+        ax.text(x, y, metric_label, ha=ha, va='center', fontsize=12)
+        
+        # Add value box
+        box_distance = 1.0
+        box_x = box_distance * np.cos(angle)
+        box_y = box_distance * np.sin(angle)
+        
+        bbox_props = dict(
+            boxstyle='round,pad=0.5',
+            fc='white',
+            ec='#0d472e',
+            lw=2
+        )
+        ax.text(box_x, box_y, f'{value:.3f}', ha='center', va='center',
+                bbox=bbox_props, fontsize=10)
+
+    # Add grid with light color
+    ax.grid(color='gray', alpha=0.2)
     
-    # Set chart properties with improved formatting
-    ax.set_xticks(angles[:-1])
-    metric_labels = [m.replace('_', '\n').title() for m in metrics]
-    ax.set_xticklabels(metric_labels,
-                       color='black',
-                       fontsize=18,
-                       fontweight='bold')
+    # Set chart limits with some padding
+    ax.set_ylim(0, 1.2)
     
-    # Remove radial labels and set limits
-    ax.set_yticklabels([])
-    ax.set_ylim(0, 1)
-    
-    # Add subtle grid
-    ax.grid(True, color='#cccccc', alpha=0.3, linewidth=1.5)
-    
-    # Format model name for better display
-    model_display = model_name.replace('-', ' ').replace(':', '\n')
-    
-    # Add formatted title
-    plt.title(f'{model_display}\n{retrieval_strategy}', 
-              color='black',
-              pad=40,
-              y=1.1,
+    # Set title
+    plt.title('RAG Evaluation Metrics\n' + model_name,
+              pad=20,
+              y=1.05,
               fontsize=24,
               fontweight='bold')
-    
+
     # Save figure
-    plt.savefig(image_filename, 
-                bbox_inches='tight',
-                dpi=300,
-                facecolor='white',
-                edgecolor='none')
+    plt.savefig(image_filename, dpi=300, bbox_inches='tight', facecolor='white')
     plt.close()
 
 def plot_radar_metrics(metrics: Dict[str, float], model_name: str, save_path: str = None):
