@@ -16,15 +16,14 @@ Master_Thesis_RAG_Benchmarking is a comprehensive benchmarking framework for Ret
   - Sparse (using BM25)  
   - Hybrid (combining dense and sparse methods)
 - **Generative Models**  
-  - Nemotron-mini  
+  - Deepseek-r1
   - Llama 3.2  
-  - Gemma 2  
-  - Qwen 2.5
+  - Other Ollama-compatible models
 - **Evaluation Frameworks**  
-  - **RAGAS:** Measures faithfulness, answer relevancy, and context precision.  
-  - **RGB:** Evaluates noise robustness, integration, and counterfactual analysis.
+  - **RAGAS:** Measures faithfulness, answer relevancy, context precision, and context recall.  
+  - **RGB:** Evaluates noise robustness, integration, and factual correctness.
 - **Local Model Integration**  
-  - Call local models using tools like `ollama` for on-demand generation.
+  - Call local models using Ollama for on-demand generation.
 - **Interactive Experiments**  
   - Provided Jupyter notebooks for step-by-step experimentation.
 
@@ -57,8 +56,18 @@ Master_Thesis_RAG_Benchmarking is a comprehensive benchmarking framework for Ret
    pip install -r requirements.txt
    ```
 
-4. **Configure your environment:**
-   - Set up the environment variable for your OpenAI API key. For example:
+4. **Install Ollama:**
+   Follow the instructions at [ollama.com](https://ollama.com) to install Ollama on your system.
+
+5. **Pull required models:**
+   ```bash
+   ollama pull deepseek-r1:1.5b
+   ollama pull llama3.2:3b
+   ollama pull nomic-embed-text  # for embeddings
+   ```
+
+6. **Configure your environment:**
+   - Set up the environment variable for your OpenAI API key (needed for evaluations):
      ```bash
      export OPENAI_API_KEY="your_openai_api_key"
      ```
@@ -80,15 +89,25 @@ This script will:
 ### RGB Benchmark Pipeline
 Execute the RGB pipeline for local evaluation with customizable noise and fact-checking:
 ```bash
-python benchmarks/RGB/RGB.py --ollama_model llama3.2:3b --dataset en --noise_rate 0.0
+python -m benchmarks.RGB.RGB --ollama_model llama3.2:3b --dataset en --noise_rate 0.0
+```
+
+For fact-checking evaluation:
+```bash
+python -m benchmarks.RGB.fact_evalue --ollama_model llama3.2:3b --dataset en --noise_rate 0.0
+```
+
+For rejection capability evaluation:
+```bash
+python -m benchmarks.RGB.reject_evalue --ollama_model llama3.2:3b --dataset en
 ```
 
 Additional options (like fact-checking and debug mode) are available. Use the `-h` flag to view all arguments.
 
 ## Notebooks
 For an interactive exploration of the benchmarking process, check out:
-- **Ragas_benchmark.ipynb**: Walkthrough of the RAG benchmark pipeline.
-- **RGB_benchmark.ipynb**: Interactive setup and evaluation using local models.
+- **Ragas_benchmark.ipynb**: Walkthrough of the RAG benchmark pipeline with visualization of metrics.
+- **RGB_benchmark.ipynb**: Interactive setup and evaluation using local models with configurable noise rates.
 
 ## License
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
@@ -98,3 +117,4 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 ![RAG Pipeline](images/pipelineRAG.png)
 
 Happy benchmarking!
+
