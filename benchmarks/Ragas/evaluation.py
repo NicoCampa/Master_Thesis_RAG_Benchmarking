@@ -169,46 +169,112 @@ def plot_heatmap(result, image_filename):
     plt.savefig(image_filename, bbox_inches='tight', dpi=300)
     plt.close()
 
-def plot_radar_charts(result, image_filename):
-    df = result.to_pandas()
+def plot_radar_performance(result, image_filename):
+    """
+    Creates a clean, modern radar chart for model performance metrics.
+    """
+    # Extract model name and retrieval strategy from filename
+    filename_parts = os.path.basename(image_filename).split('_')
+    model_name = filename_parts[0]
+    retrieval_strategy = filename_parts[1] if len(filename_parts) > 1 else ""
+    
+    # Format model name for display
+    model_display = model_name.replace('-', ' ').replace(':', ' ')
+    
+    # Get metrics data
+    df = result if isinstance(result, pd.DataFrame) else result.to_pandas()
     metrics = ["context_precision", "context_recall", "faithfulness", "answer_relevancy"]
+    display_names = ["Context\nPrecision", "Context\nRecall", "Faithfulness", "Answer\nRelevancy"]
+    avg_scores = df[metrics].mean()
     
-    n_questions = len(df)
-    n_cols = min(3, n_questions)
-    n_rows = (n_questions + n_cols - 1) // n_cols
+    # Set up colors
+    background_color = '#ffffff'
+    primary_color = '#006400'  # Dark green
+    secondary_color = '#90EE90'  # Light green
+    text_color = '#333333'
+    grid_color = '#cccccc'
     
-    fig = plt.figure(figsize=(15, 5 * n_rows))
+    # Create figure and polar axes
+    fig = plt.figure(figsize=(12, 12), facecolor=background_color)
+    ax = fig.add_subplot(111, polar=True)
     
-    for idx, (_, row) in enumerate(df.iterrows(), 1):
-        ax = plt.subplot(n_rows, n_cols, idx, projection='polar')
-        
-        values = row[metrics].values
-        angles = np.linspace(0, 2*np.pi, len(metrics), endpoint=False)
-        values = np.concatenate((values, [values[0]]))
-        angles = np.concatenate((angles, [angles[0]]))
-        
-        # Add background grid with better visibility
-        ax.grid(True, alpha=0.3)
-        
-        # Plot with better styling
-        ax.plot(angles, values, 'o-', linewidth=2, label='Scores')
-        ax.fill(angles, values, alpha=0.25)
-        ax.set_xticks(angles[:-1])
-        ax.set_xticklabels([m.replace("_", "\n") for m in metrics], fontsize=8)
-        ax.set_ylim(0, 1)
-        
-        # Add score labels
-        for angle, value in zip(angles[:-1], values[:-1]):
-            ax.text(angle, value, f'{value:.2f}', 
-                   ha='center', va='bottom')
-        
-        # Truncate question for title
-        title = textwrap.fill(row['question'][:50], width=30)
-        ax.set_title(title + '...', pad=20, fontsize=10)
+    # Set background color
+    ax.set_facecolor(background_color)
     
-    plt.tight_layout(h_pad=3, w_pad=2)
-    plt.savefig(image_filename, bbox_inches='tight', dpi=300)
+    # Number of metrics and angles
+    N = len(metrics)
+    angles = [n / N * 2 * np.pi for n in range(N)]
+    angles += angles[:1]  # Close the loop
+    
+    # Add the values
+    values = avg_scores.tolist()
+    values += values[:1]  # Close the loop
+    
+    # Draw the chart elements
+    ax.plot(angles, values, 'o-', linewidth=3, color=primary_color, markersize=10)
+    ax.fill(angles, values, color=secondary_color, alpha=0.4)
+    
+    # Draw circular grid lines
+    ax.set_rlabel_position(0)
+    plt.yticks([0.2, 0.4, 0.6, 0.8, 1.0], color=text_color, size=0)  # Hide tick labels
+    
+    # Draw grid lines but with very light colors
+    ax.grid(True, color=grid_color, linestyle='-', linewidth=0.5, alpha=0.7)
+    
+    # Set y-axis limit
+    ax.set_ylim(0, 1)
+    
+    # Add metric labels at each point
+    ax.set_xticks(angles[:-1])
+    ax.set_xticklabels([])  # Hide default labels, we'll add our own
+    
+    # Add custom metric labels and values around the chart
+    for i, (display_name, angle, value) in enumerate(zip(display_names, angles[:-1], values[:-1])):
+        # Calculate positions
+        angle_deg = np.rad2deg(angle)
+        
+        # Add metric name
+        ha = 'center'
+        if angle_deg < 90 or angle_deg > 270:
+            ha = 'left'
+        elif 90 < angle_deg < 270:
+            ha = 'right'
+            
+        # Adjust label position based on angle quadrant
+        label_distance = 1.3
+        ax.text(angle, label_distance, display_name, 
+                size=14, fontweight='bold', ha=ha, va='center', 
+                color=text_color)
+        
+        # Add value in box
+        box_distance = 1.05  # Distance from center
+        x = box_distance * np.cos(angle)
+        y = box_distance * np.sin(angle)
+        
+        # Create text box
+        bbox_props = dict(boxstyle='round,pad=0.5', facecolor='white', 
+                         edgecolor=primary_color, linewidth=2)
+        ax.text(angle, value + 0.05, f"{value:.3f}", 
+                size=14, fontweight='bold', ha='center', va='center', color=text_color,
+                bbox=bbox_props)
+    
+    # Combine model name and retrieval strategy for title
+    title = f"{model_display}"
+    if retrieval_strategy:
+        title += f"\n{retrieval_strategy}"
+    
+    # Add title
+    ax.set_title(title, size=24, fontweight='bold', color=text_color, pad=30)
+    
+    # Add subtle credit text
+    plt.figtext(0.95, 0.01, "Generated with RAGAS", ha='right', va='bottom', 
+                fontsize=8, color='#999999')
+    
+    # Save the figure
+    plt.savefig(image_filename, dpi=300, bbox_inches='tight', facecolor=background_color)
     plt.close()
+    
+    print(f"Radar chart saved to: {image_filename}")
 
 def plot_split_heatmaps(result, base_filename, questions_per_plot=15):
     """
@@ -254,80 +320,130 @@ def get_color_scheme(strategy):
 
 def plot_average_metrics(result, image_filename):
     """
-    Plot average metrics using a radar chart with improved aesthetics and readability.
+    Creates a clean radar chart for model performance metrics with horizontal labels.
     """
-    # Get model name and retrieval strategy from filename
+    # Extract model name and retrieval strategy from filename
     filename_parts = os.path.basename(image_filename).split('_')
     model_name = filename_parts[0]
-    retrieval_strategy = filename_parts[1]
+    retrieval_strategy = filename_parts[1] if len(filename_parts) > 1 else ""
     
+    # Format model name for display - putting hybrid on same line
+    model_display = f"{model_name.replace('-', ' ').replace(':', ' ')} {retrieval_strategy}"
+    
+    # Get metrics data
     df = result if isinstance(result, pd.DataFrame) else result.to_pandas()
-    metrics = ["context_precision", "context_recall", "faithfulness", "answer_relevancy"]
-    avg_scores = df[metrics].mean()
     
-    # Set up the figure
-    plt.figure(figsize=(12, 12), facecolor='white')
-    ax = plt.subplot(111, projection='polar')
-    ax.set_facecolor('white')
-
-    # Prepare data
-    angles = np.linspace(0, 2*np.pi, len(metrics), endpoint=False)
-    values = np.concatenate((avg_scores, [avg_scores[0]]))
-    angles = np.concatenate((angles, [angles[0]]))
-
-    # Plot data
-    ax.fill(angles, values, color='#e1f5e9', alpha=0.25)  # Light green fill
-    ax.plot(angles, values, 'o-', linewidth=2, color='#0d472e', markersize=8)  # Dark green line
-
-    # Clear default labels
+    # Define metrics in clockwise order starting from top
+    metrics = ["context_recall", "context_precision", "faithfulness", "answer_relevancy"]
+    display_names = ["Context Recall", "Context\nPrecision", "Faithfulness", "Answer\nRelevancy"]
+    
+    # Get values in the correct order
+    avg_scores = df[metrics].mean().values
+    
+    # Set up colors
+    background_color = '#ffffff'
+    primary_color = '#006400'  # Dark green
+    secondary_color = '#90EE90'  # Light green
+    text_color = '#333333'
+    grid_color = '#cccccc'
+    
+    # Create figure and polar axes
+    fig = plt.figure(figsize=(12, 12), facecolor=background_color)
+    ax = fig.add_subplot(111, polar=True)
+    
+    # Set background color
+    ax.set_facecolor(background_color)
+    
+    # Number of metrics and angles - starting from the top
+    N = len(metrics)
+    theta = np.linspace(0, 2*np.pi, N, endpoint=False)
+    theta = np.roll(theta, -N//4)  # Start from top
+    
+    # Close the polygon by appending first values
+    theta_closed = np.append(theta, theta[0])
+    values_closed = np.append(avg_scores, avg_scores[0])
+    
+    # Draw the chart elements
+    ax.plot(theta_closed, values_closed, 'o-', linewidth=3, color=primary_color, markersize=10)
+    ax.fill(theta_closed, values_closed, color=secondary_color, alpha=0.4)
+    
+    # Draw circular grid lines
+    ax.set_rlabel_position(0)
+    plt.yticks([0.2, 0.4, 0.6, 0.8, 1.0], color=text_color, size=0)  # Hide tick labels
+    
+    # Draw grid lines but with very light colors
+    ax.grid(True, color=grid_color, linestyle='-', linewidth=0.5, alpha=0.7)
+    
+    # Set y-axis limit
+    ax.set_ylim(0, 1)
+    
+    # Hide default axis tick labels
+    ax.set_xticks(theta)
     ax.set_xticklabels([])
     
-    # Add metric labels and value boxes at each point
-    for idx, (metric, value, angle) in enumerate(zip(metrics, avg_scores, angles)):
-        # Format metric label
-        metric_label = metric.replace('_', '\n').title()
-        
+    # Add custom metric labels and values
+    for i, (name, angle, value) in enumerate(zip(display_names, theta, avg_scores)):
         # Calculate label position
-        label_distance = 1.3
-        x = label_distance * np.cos(angle)
-        y = label_distance * np.sin(angle)
+        label_distance = 1.2  # Base distance
         
-        # Add metric label
-        ha = 'center'
-        if abs(np.cos(angle)) > 0.5:
-            ha = 'left' if np.cos(angle) < 0 else 'right'
-        ax.text(x, y, metric_label, ha=ha, va='center', fontsize=12)
+        # Set alignment based on quadrant
+        if i == 0:  # Top - Context Recall
+            ha = 'center'
+            va = 'bottom'
+            label_distance = 1.15  # Closer to circle
+        elif i == 1:  # Right - Context Precision
+            ha = 'left'
+            va = 'center'
+            label_distance = 1.3  # Slightly further for two-line text
+        elif i == 2:  # Bottom - Faithfulness
+            ha = 'center'
+            va = 'top'
+            label_distance = 1.15  # Closer to circle
+        elif i == 3:  # Left - Answer Relevancy
+            ha = 'right'
+            va = 'center'
+            label_distance = 1.3  # Slightly further for two-line text
         
-        # Add value box
-        box_distance = 1.0
-        box_x = box_distance * np.cos(angle)
-        box_y = box_distance * np.sin(angle)
-        
-        bbox_props = dict(
-            boxstyle='round,pad=0.5',
-            fc='white',
-            ec='#0d472e',
-            lw=2
+        # Add metric name
+        ax.text(
+            angle, label_distance,
+            name, 
+            size=18, 
+            fontweight='bold',
+            ha=ha, va=va, 
+            color=text_color
         )
-        ax.text(box_x, box_y, f'{value:.3f}', ha='center', va='center',
-                bbox=bbox_props, fontsize=10)
-
-    # Add grid with light color
-    ax.grid(color='gray', alpha=0.2)
+        
+        # Value box positioning remains the same
+        bbox_props = dict(
+            boxstyle='round,pad=0.5', 
+            facecolor='white', 
+            edgecolor=primary_color, 
+            linewidth=2
+        )
+        
+        # Position value box at data point with slight offset
+        value_offset = 0.05
+        box_radius = value + value_offset
+        
+        ax.text(
+            angle, box_radius, 
+            f"{value:.3f}", 
+            size=18, 
+            fontweight='bold',
+            ha='center', va='center', 
+            color=text_color, 
+            bbox=bbox_props
+        )
     
-    # Set chart limits with some padding
-    ax.set_ylim(0, 1.2)
+    # Add single-line title
+    ax.set_title(model_display, size=28, fontweight='bold', color=text_color, pad=40)
     
-    # Set title
-    plt.title('RAG Evaluation Metrics\n' + model_name,
-              pad=20,
-              y=1.05,
-              fontsize=24,
-              fontweight='bold')
-
-    # Save figure
-    plt.savefig(image_filename, dpi=300, bbox_inches='tight', facecolor='white')
+    # Save the figure
+    plt.savefig(image_filename, dpi=300, bbox_inches='tight', facecolor=background_color)
     plt.close()
+    
+    print(f"Radar chart saved to: {image_filename}")
 
 def plot_radar_metrics(metrics: Dict[str, float], model_name: str, save_path: str = None):
     # Set up the figure

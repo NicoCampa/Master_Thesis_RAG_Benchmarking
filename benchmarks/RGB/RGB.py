@@ -146,20 +146,32 @@ def predict(query, ground_truth, docs, model_name, system, instruction, temperat
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Run RGB benchmark pipeline with OLLAMA model"
+        description="Evaluate RGB benchmark with different models"
     )
-    parser.add_argument('--ollama_model', type=str, default='llama3.2:3b', help='OLLAMA model name')
-    parser.add_argument('--dataset', type=str, default='en', choices=['en','en_int','en_fact'], help='evaluation dataset')
-    parser.add_argument('--noise_rate', type=float, default=0.0, help='rate of noisy passages')
+    parser.add_argument(
+        '--ollama_model', type=str, required=True,
+        help='model name that was evaluated'
+    )
+    parser.add_argument(
+        '--dataset', type=str, default='en',
+        choices=['en', 'zh', 'en_int', 'zh_int', 'en_fact', 'zh_fact'],
+        help='evaluation dataset'
+    )
+    parser.add_argument(
+        '--temp', type=float, default=0.7,
+        help='temperature for generation (default: 0.7)'
+    )
+    parser.add_argument(
+        '--noise_rate', type=float, default=0.0,
+        help='rate of noisy passages'
+    )
     parser.add_argument('--correct_rate', type=float, default=0.0, help='rate of correct passages')
     parser.add_argument('--factchecking', type=bool, default=False, help='whether to perform fact checking')
     parser.add_argument('--debug', action='store_true', help='enable debug mode')
-    parser.add_argument('--temp', type=float, default=0.7, help='temperature for the model')
     parser.add_argument('--passage_num', type=int, default=5, help='number of passages to use')
     args = parser.parse_args()
 
     model_name = args.ollama_model
-    temperature = args.temp
     noise_rate = args.noise_rate
     passage_num = args.passage_num
 
@@ -205,22 +217,27 @@ en:
     os.makedirs(outputs_dir, exist_ok=True)
     os.makedirs(metrics_dir, exist_ok=True)
 
-    # Construct filename for predictions similar to original but under results/RGB/outputs
-    output_filename = os.path.join(
+    # Modified to remove temp from filenames
+    evaluate_file = os.path.join(
         outputs_dir,
-        f"prediction_{args.dataset}_{model_name}_temp{temperature}_noise{noise_rate}_passage{passage_num}_correct{args.correct_rate}.json"
+        f"prediction_{args.dataset}_{args.ollama_model}_temp{args.temp}_noise{args.noise_rate}_passage{args.passage_num}_correct{args.correct_rate}.json"
+    )
+
+    output_file = os.path.join(
+        metrics_dir,
+        f"prediction_{args.dataset}_{args.ollama_model}_temp{args.temp}_noise{args.noise_rate}_passage{args.passage_num}_correct{args.correct_rate}_metrics.json"
     )
     
     # Load already processed instances if the file exists
     useddata = {}
-    if os.path.exists(output_filename):
-        with open(output_filename, 'r', encoding='utf-8') as f_in:
+    if os.path.exists(evaluate_file):
+        with open(evaluate_file, 'r', encoding='utf-8') as f_in:
             for line in f_in:
                 data = json.loads(line)
                 useddata[data['id']] = data
 
     results_list = []
-    with open(output_filename, 'w', encoding='utf-8') as f_out:
+    with open(evaluate_file, 'w', encoding='utf-8') as f_out:
         for instance in tqdm.tqdm(instances, desc="Processing instances"):
             # Skip reprocessing if instance is already in useddata and matches
             if (instance['id'] in useddata and 
@@ -237,7 +254,7 @@ en:
                     docs = []
                 else:
                     query, ans, docs = processdata(instance, noise_rate, passage_num, args.dataset, args.correct_rate)
-                label, prediction, factlabel = predict(query, ans, docs, model_name, system, instruction, temperature, args.dataset, args.debug)
+                label, prediction, factlabel = predict(query, ans, docs, model_name, system, instruction, args.temp, args.dataset, args.debug)
                 instance['label'] = label
                 newinstance = {
                     'id': instance['id'],
@@ -286,15 +303,11 @@ en:
         scores['correct_tt'] = correct_tt
 
     # Save metrics under results/RGB/metrics
-    metrics_filename = os.path.join(
-        metrics_dir,
-        f"prediction_{args.dataset}_{model_name}_temp{temperature}_noise{noise_rate}_passage{passage_num}_correct{args.correct_rate}_result.json"
-    )
-    with open(metrics_filename, 'w', encoding='utf-8') as f_metrics:
+    with open(output_file, 'w', encoding='utf-8') as f_metrics:
         json.dump(scores, f_metrics, ensure_ascii=False, indent=4)
     
-    print(f"Outputs saved to: {output_filename}")
-    print(f"Metrics saved to: {metrics_filename}")
+    print(f"Outputs saved to: {evaluate_file}")
+    print(f"Metrics saved to: {output_file}")
 
 if __name__ == '__main__':
     main()
