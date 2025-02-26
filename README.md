@@ -91,18 +91,18 @@ Execute the RGB pipeline for local evaluation with customizable noise and fact-c
 ```bash
 python -m benchmarks.RGB.main_evalue --ollama_model llama3.2:3b --dataset en --noise_rate 0.0
 ```
-### Information Integration Testing
+## Information Integration Testing:
 To test a model's ability to integrate information from multiple passages, use the integration datasets:
 ```bash
 python -m benchmarks.RGB.main_evalue --ollama_model llama3.2:3b --dataset en_int --noise_rate 0.0
 ```
-### For fact-checking evaluation:
+## For Fact-Checking evaluation:
 ```bash
 python -m benchmarks.RGB.fact_evalue --ollama_model llama3.2:3b --dataset en --noise_rate 0.0
 ```
 This evaluates how well the model can synthesize information from multiple relevant passages to form complete answers.
 
-#### Rejection Capability Testing
+### Rejection Capability Testing:
 To test a model's ability to reject answering when given only irrelevant passages:
 
 1. First, generate predictions with 100% noise rate:
@@ -113,6 +113,7 @@ python -m benchmarks.RGB.main_evalue --ollama_model llama3.2:3b --dataset en --n
 ```bash
 python -m benchmarks.RGB.reject_evalue --ollama_model llama3.2:3b --dataset en
 ```
+
 The evaluation will use the predictions generated in step 1 to measure how often the model correctly refuses to answer when provided with only irrelevant information.
 
 Additional options (like fact-checking and debug mode) are available. Use the `-h` flag to view all arguments.
