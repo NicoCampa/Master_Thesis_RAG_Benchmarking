@@ -77,7 +77,7 @@ Master_Thesis_RAG_Benchmarking is a comprehensive benchmarking framework for Ret
 ### RAG Benchmark Pipeline
 Run the RAG pipeline to evaluate retrieval strategies combined with a generative model:
 ```bash
-python -m benchmarks.Ragas.Ragas --ollama_model deepseek-r1:1.5b --retrieval_strategy hybrid
+python -m benchmarks.Ragas.main --ollama_model deepseek-r1:1.5b --retrieval_strategy hybrid
 ```
 
 This script will:
@@ -89,7 +89,7 @@ This script will:
 ### RGB Benchmark Pipeline
 Execute the RGB pipeline for local evaluation with customizable noise and fact-checking:
 ```bash
-python -m benchmarks.RGB.RGB --ollama_model llama3.2:3b --dataset en --noise_rate 0.0
+python -m benchmarks.RGB.main_evalue --ollama_model llama3.2:3b --dataset en --noise_rate 0.0
 ```
 
 For fact-checking evaluation:
