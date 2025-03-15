@@ -77,30 +77,76 @@ def main():
     print(f"Loaded {len(questions)} questions.")
     
     # Running chain for each question with a progress bar
-    results_data = {"question": [], "answer": [], "contexts": [], "ground_truth": ground_truth}
+    all_questions = []
+    all_answers = []
+    all_contexts = []
+    detailed_output = []  # For JSON output
+    
     print("Running RAG chain for each question...")
-    for query in tqdm(questions, desc="Processing questions"):
-        results_data["question"].append(query)
+    for i, query in enumerate(tqdm(questions, desc="Processing questions")):
+        all_questions.append(query)
+        
+        # Get answer from chain
         answer_result = chain_instance.invoke({"question": query})
         answer = answer_result.get("answer", answer_result) if isinstance(answer_result, dict) else answer_result
-        results_data["answer"].append(answer)
-        retriever_output = retriever_dict["hybrid"].invoke({"query": query})
-        docs_list = retriever_output.get("documents", [])
-        results_data["contexts"].append([doc.page_content for doc in docs_list])
+        all_answers.append(answer)
+        
+        # Get contexts using the selected retrieval strategy
+        retriever_output = retriever_dict[args.retrieval_strategy].invoke({"query": query})
+        
+        # Extract documents with proper error handling
+        if isinstance(retriever_output, dict) and "documents" in retriever_output:
+            docs_list = retriever_output.get("documents", [])
+        else:
+            # Fallback
+            print(f"Warning: Unexpected retriever output format: {type(retriever_output)}")
+            docs_list = []
+        
+        # Format contexts for RAGAS - this is key
+        if not docs_list:
+            print(f"Warning: No documents retrieved for query: '{query[:50]}...'")
+            all_contexts.append(["No relevant context found."])
+        else:
+            # Each context is stored as a list of strings (RAGAS format)
+            context_texts = [doc.page_content for doc in docs_list]
+            all_contexts.append(context_texts)
+        
+        # Add entry for JSON output
+        detailed_output.append({
+            "id": i,
+            "question": query,
+            "answer": answer,
+            "ground_truth": ground_truth[i],
+            "context": "\n\n".join([doc.page_content for doc in docs_list or []]) if docs_list else "No relevant context found."
+        })
     
-    # Create the dataset from the dictionary
-    dataset = Dataset.from_dict(results_data)
+    # Create output directory and save detailed JSON
+    os.makedirs("results/Ragas/outputs", exist_ok=True)
+    output_json_path = os.path.join("results", "Ragas", "outputs", f"{args.ollama_model}_{args.retrieval_strategy}_responses.json")
+    with open(output_json_path, 'w') as f:
+        json.dump(detailed_output, f, indent=4)
+    print(f"Saved detailed responses to {output_json_path}")
+    
+    # Create dataset with the correctly formatted data
+    ragas_data = {
+        "question": all_questions,
+        "answer": all_answers,
+        "contexts": all_contexts,
+        "ground_truth": ground_truth
+    }
+    dataset = Dataset.from_dict(ragas_data)
+    
     print("First entry of the results:")
     first_entry = {
-        "question": results_data["question"][0],
-        "answer": results_data["answer"][0],
-        "contexts": results_data["contexts"][0],
-        "ground_truth": results_data["ground_truth"][0],
+        "question": all_questions[0],
+        "answer": all_answers[0],
+        "contexts": all_contexts[0],
+        "ground_truth": ground_truth[0],
     }
     print(json.dumps(first_entry, indent=4))
     
     print("Cleaning answers to remove <think> sections...")
-    from benchmarks.Ragas.evaluation import clean_thinks, evaluate_results, save_metrics, plot_heatmap, plot_average_metrics
+    from benchmarks.Ragas.evaluation import clean_thinks, evaluate_results, save_metrics, plot_average_metrics
     cleaned_dataset = clean_thinks(dataset)
     
     print("Evaluating dataset with RAG metrics...")

@@ -318,17 +318,38 @@ def get_color_scheme(strategy):
     }
     return schemes.get(strategy, schemes['hybrid'])  # Default to hybrid if strategy not found
 
-def plot_average_metrics(result, image_filename):
+def get_model_name_from_file(filename):
+    """Extract model name from the output file path."""
+    # Extract filename from path and remove extension
+    base = os.path.basename(filename)
+    parts = base.split('_')
+    # For filenames like "model-name_retriever_radar_average.png"
+    # Return everything before the retriever type
+    if len(parts) >= 2:
+        return parts[0]
+    return "Unknown Model"
+
+def get_retriever_from_file(filename):
+    """Extract retriever type from the output file path."""
+    # Extract filename from path and remove extension
+    base = os.path.basename(filename)
+    parts = base.split('_')
+    # For filenames like "model-name_retriever_radar_average.png"
+    if len(parts) >= 2:
+        return parts[1]
+    return "unknown"
+
+def plot_average_metrics(result, output_file):
     """
     Creates a clean radar chart for model performance metrics with horizontal labels.
     """
     # Extract model name and retrieval strategy from filename
-    filename_parts = os.path.basename(image_filename).split('_')
+    filename_parts = os.path.basename(output_file).split('_')
     model_name = filename_parts[0]
     retrieval_strategy = filename_parts[1] if len(filename_parts) > 1 else ""
     
-    # Format model name for display - putting hybrid on same line
-    model_display = f"{model_name.replace('-', ' ').replace(':', ' ')} {retrieval_strategy}"
+    # Format model name for display - putting retrieval strategy on same line
+    model_display = f"{model_name} {retrieval_strategy}"
     
     # Get metrics data
     df = result if isinstance(result, pd.DataFrame) else result.to_pandas()
@@ -390,19 +411,19 @@ def plot_average_metrics(result, image_filename):
         if i == 0:  # Top - Context Recall
             ha = 'center'
             va = 'bottom'
-            label_distance = 1.15  # Closer to circle
+            label_distance = 1.05  # Moved closer to circle (was 1.15)
         elif i == 1:  # Right - Context Precision
             ha = 'left'
             va = 'center'
-            label_distance = 1.3  # Slightly further for two-line text
+            label_distance = 1.3  # Unchanged
         elif i == 2:  # Bottom - Faithfulness
             ha = 'center'
             va = 'top'
-            label_distance = 1.15  # Closer to circle
+            label_distance = 1.05  # Moved closer to circle (was 1.15)
         elif i == 3:  # Left - Answer Relevancy
             ha = 'right'
             va = 'center'
-            label_distance = 1.3  # Slightly further for two-line text
+            label_distance = 1.3  # Unchanged
         
         # Add metric name
         ax.text(
@@ -436,14 +457,14 @@ def plot_average_metrics(result, image_filename):
             bbox=bbox_props
         )
     
-    # Add single-line title
-    ax.set_title(model_display, size=28, fontweight='bold', color=text_color, pad=40)
+    # Add single-line title with higher position
+    ax.set_title(model_display, size=28, fontweight='bold', color=text_color, pad=50)  # Increased pad from 40 to 50
     
     # Save the figure
-    plt.savefig(image_filename, dpi=300, bbox_inches='tight', facecolor=background_color)
+    plt.savefig(output_file, dpi=300, bbox_inches='tight', facecolor=background_color)
     plt.close()
     
-    print(f"Radar chart saved to: {image_filename}")
+    print(f"Radar chart saved to: {output_file}")
 
 def plot_radar_metrics(metrics: Dict[str, float], model_name: str, save_path: str = None):
     # Set up the figure
