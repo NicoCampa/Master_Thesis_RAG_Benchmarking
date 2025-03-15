@@ -8,6 +8,7 @@ import subprocess
 import yaml
 import numpy as np
 import tqdm
+import re
 
 def local_ollama_generate(prompt, model_name, debug=False):
     """
@@ -119,7 +120,30 @@ def checkanswer(prediction, ground_truth):
         labels.append(int(flag))
     return labels
 
-def predict(query, ground_truth, docs, model_name, system, instruction, temperature, dataset, debug=False):
+def clean_thinks(text, debug=False):
+    """
+    Remove everything between <think> and </think> tags in the model output.
+    Returns the cleaned text.
+    """
+    # Store original text for comparison if debugging is enabled
+    original_text = text
+    
+    # Remove content between <think> tags
+    pattern = r'<think>.*?</think>'
+    cleaned_text = re.sub(pattern, '', text, flags=re.DOTALL).strip()
+    
+    # Debug info if requested
+    if debug and original_text != cleaned_text:
+        print("\n[DEBUG] Removed <think> sections:")
+        print("-" * 50)
+        print("Original:", original_text)
+        print("-" * 50)
+        print("Cleaned:", cleaned_text)
+        print("-" * 50)
+    
+    return cleaned_text
+
+def predict(query, ground_truth, docs, model_name, system, instruction, dataset, debug=False):
     """
     Constructs a prompt using the system prompt and instruction. If docs exist,
     they are joined into a single string. The function then calls the local OLLAMA model
@@ -133,6 +157,10 @@ def predict(query, ground_truth, docs, model_name, system, instruction, temperat
         text = instruction.format(QUERY=query, DOCS=docs_joined)
         text = system + "\n" + text
         prediction = local_ollama_generate(text, model_name, debug)
+    
+    # Clean <think> sections from the prediction
+    prediction = clean_thinks(prediction, debug)
+    
     if 'zh' in dataset:
         prediction = prediction.replace(" ", "")
     if '信息不足' in prediction or 'insufficient information' in prediction:
@@ -156,10 +184,6 @@ def main():
         '--dataset', type=str, default='en',
         choices=['en', 'zh', 'en_int', 'zh_int', 'en_fact', 'zh_fact'],
         help='evaluation dataset'
-    )
-    parser.add_argument(
-        '--temp', type=float, default=0.7,
-        help='temperature for generation (default: 0.7)'
     )
     parser.add_argument(
         '--noise_rate', type=float, default=0.0,
@@ -212,20 +236,20 @@ en:
     instruction = prompt['instruction']
 
     # Prepare output directories under results/RGB
-    outputs_dir = os.path.join("results", "RGB", "outputs")
-    metrics_dir = os.path.join("results", "RGB", "metrics")
+    outputs_dir = os.path.join("results", "RGB", "outputs", args.ollama_model)
+    metrics_dir = os.path.join("results", "RGB", "metrics", args.ollama_model)
     os.makedirs(outputs_dir, exist_ok=True)
     os.makedirs(metrics_dir, exist_ok=True)
 
-    # Modified to remove temp from filenames
+    # File paths remain the same, but now they'll go into model-specific folders
     evaluate_file = os.path.join(
         outputs_dir,
-        f"prediction_{args.dataset}_{args.ollama_model}_temp{args.temp}_noise{args.noise_rate}_passage{args.passage_num}_correct{args.correct_rate}.json"
+        f"prediction_{args.dataset}_{args.ollama_model}_noise{args.noise_rate}_passage{args.passage_num}_correct{args.correct_rate}.json"
     )
 
     output_file = os.path.join(
         metrics_dir,
-        f"prediction_{args.dataset}_{args.ollama_model}_temp{args.temp}_noise{args.noise_rate}_passage{args.passage_num}_correct{args.correct_rate}_metrics.json"
+        f"prediction_{args.dataset}_{args.ollama_model}_noise{args.noise_rate}_passage{args.passage_num}_correct{args.correct_rate}_metrics.json"
     )
     
     # Load already processed instances if the file exists
@@ -254,7 +278,7 @@ en:
                     docs = []
                 else:
                     query, ans, docs = processdata(instance, noise_rate, passage_num, args.dataset, args.correct_rate)
-                label, prediction, factlabel = predict(query, ans, docs, model_name, system, instruction, args.temp, args.dataset, args.debug)
+                label, prediction, factlabel = predict(query, ans, docs, model_name, system, instruction, args.dataset, args.debug)
                 instance['label'] = label
                 newinstance = {
                     'id': instance['id'],

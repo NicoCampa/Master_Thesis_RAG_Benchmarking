@@ -50,6 +50,31 @@ def getdata(text, url, api_key):
         print(f"Error in API call: {e}")
         return ""
 
+def clean_thinks(text, debug=False):
+    """
+    Remove everything between <think> and </think> tags in the model output.
+    Returns the cleaned text.
+    """
+    import re
+    
+    # Store original text for comparison if debugging is enabled
+    original_text = text
+    
+    # Remove content between <think> tags
+    pattern = r'<think>.*?</think>'
+    cleaned_text = re.sub(pattern, '', text, flags=re.DOTALL).strip()
+    
+    # Debug info if requested
+    if debug and original_text != cleaned_text:
+        print("\n[DEBUG] Removed <think> sections:")
+        print("-" * 50)
+        print("Original:", original_text)
+        print("-" * 50)
+        print("Cleaned:", cleaned_text)
+        print("-" * 50)
+    
+    return cleaned_text
+
 def main():
     parser = argparse.ArgumentParser(
         description="Evaluate RGB benchmark results using ChatGPT to check rejection capabilities"
@@ -75,16 +100,12 @@ def main():
         '--passage_num', type=int, default=5,
         help='number of external passages used'
     )
-    parser.add_argument(
-        '--temp', type=float, default=0.7,
-        help='temperature for generation (default: 0.7)'
-    )
 
     args = parser.parse_args()
 
     # Set up directories for output files
-    outputs_dir = os.path.join("results", "RGB", "outputs")
-    metrics_dir = os.path.join("results", "RGB", "metrics")
+    outputs_dir = os.path.join("results", "RGB", "outputs", args.ollama_model)
+    metrics_dir = os.path.join("results", "RGB", "metrics", args.ollama_model)
     
     os.makedirs(outputs_dir, exist_ok=True)
     os.makedirs(metrics_dir, exist_ok=True)
@@ -92,19 +113,19 @@ def main():
     # Input file with predictions (must use noise_rate=1.0)
     evaluate_file = os.path.join(
         outputs_dir,
-        f"prediction_{args.dataset}_{args.ollama_model}_temp{args.temp}_noise1.0_passage{args.passage_num}_correct0.0.json"
+        f"prediction_{args.dataset}_{args.ollama_model}_noise1.0_passage{args.passage_num}_correct0.0.json"
     )
 
     # Output file with ChatGPT evaluations
     output_file = os.path.join(
         outputs_dir,
-        f"prediction_{args.dataset}_{args.ollama_model}_temp{args.temp}_noise1.0_passage{args.passage_num}_correct0.0_chatgpt.json"
+        f"prediction_{args.dataset}_{args.ollama_model}_noise1.0_passage{args.passage_num}_correct0.0_chatgpt.json"
     )
 
     # Final results metrics file
     result_file = os.path.join(
         metrics_dir,
-        f"prediction_{args.dataset}_{args.ollama_model}_temp{args.temp}_noise1.0_passage{args.passage_num}_correct0.0_chatgptresult.json"
+        f"prediction_{args.dataset}_{args.ollama_model}_noise1.0_passage{args.passage_num}_correct0.0_chatgptresult.json"
     )
 
     # Load any already processed data if available
@@ -134,6 +155,9 @@ def main():
                 try:
                     question = data['query']
                     answer = data['prediction']
+                    
+                    # Clean any potential <think> tags
+                    answer = clean_thinks(answer)
                     
                     evaluation = check(question, answer, args.url, args.api_key)
                     data['evaluation'] = evaluation
