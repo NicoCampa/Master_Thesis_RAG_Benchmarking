@@ -646,3 +646,187 @@ def evaluate_dataset(dataset_path, evaluator_llm):
     plot_average_metrics(result, base_filename)  # This will generate all plots
     
     return result 
+
+def evaluate_results_by_category(cleaned_dataset, evaluator_llm):
+    """
+    Run evaluation using ragas framework and break down results by question type.
+    """
+    print("Starting evaluation with category breakdown...")
+    from ragas import evaluate
+    from ragas.metrics import context_precision, context_recall, faithfulness, answer_relevancy
+    import pandas as pd
+    
+    # First, get the standard evaluation results
+    result = evaluate_results(cleaned_dataset, evaluator_llm)
+    
+    # Now, let's add category analysis
+    print("\nBreaking down results by question type...")
+    
+    # Get the evaluation dataframe
+    eval_df = result.to_pandas()
+    
+    # Get the original dataset with question types
+    # Assume question_types are available in a column named 'question_type'
+    dataset_df = cleaned_dataset.to_pandas()
+    
+    # If the dataset doesn't have question_type column, try to extract from qa.csv
+    if 'question_type' not in dataset_df.columns:
+        try:
+            qa_df = pd.read_csv('./data/Ragas/qa.csv', sep=';')
+            
+            # Create a mapping from question to question_type
+            question_to_type = dict(zip(qa_df['question'], qa_df['question_type']))
+            
+            # Add question_type to the evaluation dataframe
+            dataset_df['question_type'] = dataset_df['question'].map(question_to_type)
+            
+            print(f"Successfully mapped {sum(dataset_df['question_type'].notna())} out of {len(dataset_df)} questions to their types")
+        except Exception as e:
+            print(f"Could not load question types from qa.csv: {str(e)}")
+            return result
+    
+    # Now add the question types to the evaluation dataframe
+    # We need to ensure the order is preserved
+    question_types = []
+    for q in eval_df['question']:
+        found = False
+        for idx, row in dataset_df.iterrows():
+            if row['question'] == q:
+                question_types.append(row.get('question_type', 'unknown'))
+                found = True
+                break
+        if not found:
+            question_types.append('unknown')
+    
+    eval_df['question_type'] = question_types
+    
+    # Group by question type and calculate mean for each metric
+    metrics = ['context_precision', 'context_recall', 'faithfulness', 'answer_relevancy']
+    category_metrics = eval_df.groupby('question_type')[metrics].mean()
+    
+    # Print the categorical results
+    print("\n--- Results by Question Type ---")
+    print(category_metrics.round(3))
+    
+    # Calculate count of each question type for weighted average validation
+    type_counts = eval_df['question_type'].value_counts()
+    print("\nQuestion type distribution:")
+    for qtype, count in type_counts.items():
+        print(f"  {qtype}: {count} questions ({count/len(eval_df)*100:.1f}%)")
+        
+    # Return enhanced result with category breakdowns
+    result.category_metrics = category_metrics
+    return result
+
+def create_model_subdirectories(model_name):
+    """
+    Create organized subdirectories for a specific model's outputs.
+    """
+    import os
+    
+    # Define the base paths
+    base_paths = [
+        os.path.join("results", "Ragas", "images", model_name),
+        os.path.join("results", "Ragas", "metrics", model_name),
+        os.path.join("results", "Ragas", "outputs", model_name)
+    ]
+    
+    # Create each directory
+    for path in base_paths:
+        os.makedirs(path, exist_ok=True)
+        print(f"Ensured directory exists: {path}")
+    
+    return base_paths
+
+def plot_metrics_by_category(result, model_name, retriever_type):
+    """
+    Create bar chart visualization for metrics broken down by question category.
+    """
+    if not hasattr(result, 'category_metrics'):
+        print("No category metrics available for plotting")
+        return
+    
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import os
+    
+    # Get the category metrics
+    cat_metrics = result.category_metrics
+    
+    # Create model subdirectories
+    image_dir = os.path.join("results", "Ragas", "images", model_name)
+    os.makedirs(image_dir, exist_ok=True)
+    
+    # Set up plot configurations
+    metrics = ['context_precision', 'context_recall', 'faithfulness', 'answer_relevancy']
+    display_names = {
+        'context_precision': 'Context Precision',
+        'context_recall': 'Context Recall', 
+        'faithfulness': 'Faithfulness',
+        'answer_relevancy': 'Answer Relevancy'
+    }
+    
+    # Bar chart comparison of question types
+    plt.figure(figsize=(12, 8))
+    
+    # Set up the bar positions
+    categories = cat_metrics.index
+    x = np.arange(len(categories))
+    width = 0.2  # Width of the bars
+    
+    # Plot bars for each metric
+    for i, metric in enumerate(metrics):
+        plt.bar(x + i*width - width*1.5, 
+                cat_metrics[metric], 
+                width, 
+                label=display_names[metric])
+    
+    # Customize the chart
+    plt.xlabel('Question Type', fontsize=14)
+    plt.ylabel('Score', fontsize=14)
+    plt.title(f'Performance by Question Type: {model_name} {retriever_type}', fontsize=16)
+    plt.xticks(x, categories, rotation=0, fontsize=12)
+    plt.ylim(0, 1)
+    plt.legend(loc='lower right')
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+    
+    # Add value labels
+    for i, metric in enumerate(metrics):
+        for j, v in enumerate(cat_metrics[metric]):
+            plt.text(j + i*width - width*1.5, v + 0.02, f'{v:.2f}', 
+                    ha='center', va='bottom', fontsize=10, rotation=0)
+    
+    # Save the chart
+    category_chart = os.path.join(image_dir, f"{retriever_type}_category_comparison.png")
+    plt.tight_layout()
+    plt.savefig(category_chart, dpi=300)
+    plt.close()
+    print(f"Saved category comparison chart to {category_chart}")
+
+def save_metrics_by_category(result, model_name, retriever_type):
+    """
+    Save metrics broken down by question category to a JSON file.
+    """
+    import json
+    import os
+    
+    if not hasattr(result, 'category_metrics'):
+        print("No category metrics available for saving")
+        return
+    
+    # Create model subdirectory
+    metrics_dir = os.path.join("results", "Ragas", "metrics", model_name)
+    os.makedirs(metrics_dir, exist_ok=True)
+    
+    # Create the metrics dictionary
+    metrics_by_category = {
+        'overall': result.to_pandas()[['context_precision', 'context_recall', 'faithfulness', 'answer_relevancy']].mean().to_dict(),
+        'by_category': result.category_metrics.to_dict('index')
+    }
+    
+    # Save to JSON
+    filename = os.path.join(metrics_dir, f"{retriever_type}_results.json")
+    with open(filename, 'w') as f:
+        json.dump(metrics_by_category, f, indent=4)
+    
+    print(f"Saved category metrics to {filename}") 

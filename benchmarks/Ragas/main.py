@@ -30,6 +30,7 @@ import json
 from datasets import Dataset
 import pandas as pd
 from tqdm import tqdm
+import re
 
 def main():
     parser = argparse.ArgumentParser(description="Run RAG benchmark pipeline.")
@@ -149,27 +150,46 @@ def main():
     from benchmarks.Ragas.evaluation import clean_thinks, evaluate_results, save_metrics, plot_average_metrics
     cleaned_dataset = clean_thinks(dataset)
     
-    print("Evaluating dataset with RAG metrics...")
+    # First ensure model name is properly formatted for directory naming
+    model_dir_name = re.sub(r'[^\w\-]', '_', args.ollama_model)
+
+    # Create model subdirectories at the beginning of the evaluation section
+    print("Creating organized output directories...")
+    from benchmarks.Ragas.evaluation import create_model_subdirectories
+    create_model_subdirectories(model_dir_name)
+
+    # Update the evaluation section to use the new functions
+    print("Evaluating dataset with RAG metrics by category...")
     from ragas.llms import LangchainLLMWrapper
     from langchain_openai import ChatOpenAI
+    from benchmarks.Ragas.evaluation import (
+        evaluate_results_by_category, 
+        plot_metrics_by_category, 
+        save_metrics_by_category,
+        plot_average_metrics
+    )
+
     evaluator_llm = LangchainLLMWrapper(ChatOpenAI(model="gpt-4o-mini"))
-    result = evaluate_results(cleaned_dataset, evaluator_llm)
-    
+    result = evaluate_results_by_category(cleaned_dataset, evaluator_llm)
+
     print("Average evaluation metrics:")
     df_metrics = result.to_pandas()[['context_precision', 'context_recall', 'faithfulness', "answer_relevancy"]].mean()
     print(df_metrics)
-    
-    # Create directories if they don't exist
-    os.makedirs("results/Ragas/metrics", exist_ok=True)
-    os.makedirs("results/Ragas/images", exist_ok=True)
-    
-    # Save metrics results to a JSON file in results/Ragas/metrics
-    output_json = os.path.join("results", "Ragas", "metrics", f"{args.ollama_model}_{args.retrieval_strategy}_results.json")
-    save_metrics(result, output_json)
-    
-    # Plot only the average metrics radar chart
-    image_filename = os.path.join("results", "Ragas", "images", f"{args.ollama_model}_{args.retrieval_strategy}_radar_average.png")
+
+    # Save metrics and visualization with new organization
+    save_metrics_by_category(result, model_dir_name, args.retrieval_strategy)
+    plot_metrics_by_category(result, model_dir_name, args.retrieval_strategy)
+
+    # Plot overall radar chart in the model subdirectory
+    image_filename = os.path.join("results", "Ragas", "images", model_dir_name, f"{args.retrieval_strategy}_radar_average.png")
     plot_average_metrics(result, image_filename)
+
+    # Save detailed JSON outputs to the outputs directory
+    detailed_output_path = os.path.join("results", "Ragas", "outputs", model_dir_name, f"{args.retrieval_strategy}_responses.json")
+    os.makedirs(os.path.dirname(detailed_output_path), exist_ok=True)
+    with open(detailed_output_path, 'w') as f:
+        json.dump(detailed_output, f, indent=4)
+    print(f"Saved detailed responses to {detailed_output_path}")
     
     print("RAG benchmark pipeline completed.")
 
