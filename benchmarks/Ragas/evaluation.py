@@ -11,6 +11,7 @@ import numpy as np
 from typing import Dict
 import matplotlib.colors as mcolors
 import time
+from openai import RateLimitError
 
 def clean_thinks(dataset: Dataset) -> Dataset:
     """
@@ -53,23 +54,125 @@ def clean_thinks(dataset: Dataset) -> Dataset:
 
 def evaluate_results(cleaned_dataset, evaluator_llm):
     """
-    Run evaluation using ragas evaluation framework.
+    Run evaluation using ragas evaluation framework with simpler batching.
     """
-    print("Starting evaluation of results with metrics...")
+    print("Starting evaluation with simplified batching...")
     from ragas import evaluate
     from ragas.metrics import context_precision, context_recall, faithfulness, answer_relevancy
-
+    import time
+    import pandas as pd
+    from datasets import Dataset
+    
+    # Define batch size and delay
+    BATCH_SIZE = 10
+    DELAY_SECONDS = 5
+    
+    # Convert to pandas for easier slicing
+    df = cleaned_dataset.to_pandas()
+    total_questions = len(df)
+    
+    print(f"Total questions to evaluate: {total_questions}")
+    print(f"Processing in batches of {BATCH_SIZE} with {DELAY_SECONDS}s delay between batches")
+    
+    # Initialize a results dataframe to store all scores
+    results_df = pd.DataFrame({
+        'question': df['question'],
+        'answer': df['answer'],
+        'contexts': df['contexts'],
+        'ground_truth': df['ground_truth'],
+        'context_precision': float('nan'),
+        'context_recall': float('nan'),
+        'faithfulness': float('nan'),
+        'answer_relevancy': float('nan')
+    })
+    
+    # Process in batches
+    for start_idx in range(0, total_questions, BATCH_SIZE):
+        end_idx = min(start_idx + BATCH_SIZE, total_questions)
+        print(f"\nProcessing batch: questions {start_idx+1} to {end_idx}")
+        
+        # Create a subset of the original dataset
+        batch_dataset = Dataset.from_pandas(df.iloc[start_idx:end_idx])
+        
+        # Set up metrics
+        metrics = [context_precision, context_recall, faithfulness, answer_relevancy]
+        
+        # Evaluate batch with retry logic
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                batch_result = evaluate(
+                    dataset=batch_dataset,
+                    metrics=metrics,
+                    llm=evaluator_llm
+                )
+                
+                # Extract results into dataframe
+                batch_df = batch_result.to_pandas()
+                
+                # Copy scores back to the main results dataframe
+                for metric in ['context_precision', 'context_recall', 'faithfulness', 'answer_relevancy']:
+                    results_df.loc[start_idx:end_idx-1, metric] = batch_df[metric].values
+                
+                print(f"✓ Successfully evaluated batch")
+                break
+                
+            except Exception as e:
+                print(f"Error during batch evaluation (attempt {attempt+1}/{max_retries}): {str(e)}")
+                
+                if attempt < max_retries - 1:
+                    wait_time = DELAY_SECONDS * (2 ** attempt)
+                    print(f"Waiting {wait_time} seconds before retry...")
+                    time.sleep(wait_time)
+                else:
+                    print(f"Failed to evaluate batch after {max_retries} attempts")
+                    # Don't raise - continue with other batches
+        
+        # Wait between batches to avoid rate limits
+        if end_idx < total_questions:
+            print(f"Waiting {DELAY_SECONDS} seconds before next batch...")
+            time.sleep(DELAY_SECONDS)
+    
+    # Create final dataset with all results
+    final_dataset = Dataset.from_pandas(results_df)
+    
+    # Run one final evaluation just to create a proper Result object
+    # But with empty dataset so it's just for structure
     try:
-        result = evaluate(
-            dataset=cleaned_dataset,
-            metrics=[context_precision, context_recall, faithfulness, answer_relevancy],
+        print("\nCreating final Result object...")
+        empty_result = evaluate(
+            dataset=Dataset.from_dict({
+                'question': [],
+                'answer': [],
+                'contexts': [],
+                'ground_truth': []
+            }),
+            metrics=metrics,
             llm=evaluator_llm
         )
-        print("Evaluation completed.")
-        return result
+        
+        # Get the proper Result object representation and replace its dataset
+        from ragas.evaluation import Result
+        final_result = Result(empty_result._asdict())
+        final_result.dataset = final_dataset
+        
+        print("Success: Final evaluation object created")
+        return final_result
+        
     except Exception as e:
-        print(f"Error during evaluation: {str(e)}")
-        raise e
+        print(f"Error creating final Result object: {str(e)}")
+        # Create a simple wrapper class as fallback
+        class SimpleResult:
+            def __init__(self, df):
+                self.df = df
+                
+            def to_pandas(self):
+                return self.df
+                
+            def _asdict(self):
+                return {"dataset": final_dataset, "metrics": metrics}
+                
+        return SimpleResult(results_df)
 
 def save_metrics(result, filename):
     """
