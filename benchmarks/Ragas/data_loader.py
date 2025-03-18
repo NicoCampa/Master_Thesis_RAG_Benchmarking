@@ -8,8 +8,8 @@ def load_documents():
     loader = TextLoader("./data/Ragas/testContext.txt")
     docs = loader.load()
     text_splitter = TokenTextSplitter(
-        chunk_size=150,
-        chunk_overlap=30,
+        chunk_size=200,
+        chunk_overlap=40,
         encoding_name="cl100k_base"  # This is GPT-4's encoding
     )
     chunks = text_splitter.split_documents(docs)

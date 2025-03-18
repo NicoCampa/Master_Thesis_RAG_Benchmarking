@@ -1,0 +1,28 @@
+{
+    "overall": {
+        "context_precision": 0.7384953703417325,
+        "context_recall": 0.733611111111111,
+        "faithfulness": 0.374518907789326,
+        "answer_relevancy": 0.7825243937113424
+    },
+    "by_category": {
+        "general": {
+            "context_precision": 0.7561805555281568,
+            "context_recall": 0.6966666666666667,
+            "faithfulness": 0.4215638242476478,
+            "answer_relevancy": 0.7922191980305405
+        },
+        "multihop": {
+            "context_precision": 0.8771527777516521,
+            "context_recall": 0.7041666666666667,
+            "faithfulness": 0.36860919948663085,
+            "answer_relevancy": 0.7784414673100419
+        },
+        "specific": {
+            "context_precision": 0.5821527777453883,
+            "context_recall": 0.8,
+            "faithfulness": 0.3333836996336996,
+            "answer_relevancy": 0.7769125157934446
+        }
+    }
+}

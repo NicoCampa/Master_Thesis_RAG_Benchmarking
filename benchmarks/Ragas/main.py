@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import warnings
+import time
 
 # Filter all deprecation warnings
 warnings.filterwarnings('ignore', category=DeprecationWarning)
@@ -84,46 +85,65 @@ def main():
     detailed_output = []  # For JSON output
     
     print("Running RAG chain for each question...")
-    for i, query in enumerate(tqdm(questions, desc="Processing questions")):
-        all_questions.append(query)
+    batch_size = 10
+    for batch_start in range(0, len(questions), batch_size):
+        batch_end = min(batch_start + batch_size, len(questions))
+        print(f"\nProcessing batch {batch_start//batch_size + 1}: questions {batch_start+1} to {batch_end}")
         
-        # Get answer from chain
-        answer_result = chain_instance.invoke({"question": query})
-        answer = answer_result.get("answer", answer_result) if isinstance(answer_result, dict) else answer_result
-        all_answers.append(answer)
+        # Process this batch
+        for i in range(batch_start, batch_end):
+            query = questions[i]
+            all_questions.append(query)
+            
+            # Get answer from chain
+            answer_result = chain_instance.invoke({"question": query})
+            answer = answer_result.get("answer", answer_result) if isinstance(answer_result, dict) else answer_result
+            all_answers.append(answer)
+            
+            # Get contexts using the selected retrieval strategy
+            retriever_output = retriever_dict[args.retrieval_strategy].invoke({"query": query})
+            
+            # Extract documents with proper error handling
+            if isinstance(retriever_output, dict) and "documents" in retriever_output:
+                docs_list = retriever_output.get("documents", [])
+            else:
+                # Fallback
+                print(f"Warning: Unexpected retriever output format: {type(retriever_output)}")
+                docs_list = []
+            
+            # Format contexts for RAGAS - this is key
+            if not docs_list:
+                print(f"Warning: No documents retrieved for query: '{query[:50]}...'")
+                all_contexts.append(["No relevant context found."])
+            else:
+                # Each context is stored as a list of strings (RAGAS format)
+                context_texts = [doc.page_content for doc in docs_list]
+                all_contexts.append(context_texts)
+            
+            # Add entry for JSON output
+            detailed_output.append({
+                "id": i,
+                "question": query,
+                "answer": answer,
+                "ground_truth": ground_truth[i],
+                "context": "\n\n".join([doc.page_content for doc in docs_list or []]) if docs_list else "No relevant context found."
+            })
         
-        # Get contexts using the selected retrieval strategy
-        retriever_output = retriever_dict[args.retrieval_strategy].invoke({"query": query})
-        
-        # Extract documents with proper error handling
-        if isinstance(retriever_output, dict) and "documents" in retriever_output:
-            docs_list = retriever_output.get("documents", [])
-        else:
-            # Fallback
-            print(f"Warning: Unexpected retriever output format: {type(retriever_output)}")
-            docs_list = []
-        
-        # Format contexts for RAGAS - this is key
-        if not docs_list:
-            print(f"Warning: No documents retrieved for query: '{query[:50]}...'")
-            all_contexts.append(["No relevant context found."])
-        else:
-            # Each context is stored as a list of strings (RAGAS format)
-            context_texts = [doc.page_content for doc in docs_list]
-            all_contexts.append(context_texts)
-        
-        # Add entry for JSON output
-        detailed_output.append({
-            "id": i,
-            "question": query,
-            "answer": answer,
-            "ground_truth": ground_truth[i],
-            "context": "\n\n".join([doc.page_content for doc in docs_list or []]) if docs_list else "No relevant context found."
-        })
+        # Wait between batches
+        if batch_end < len(questions):
+            print(f"Batch complete. Pausing for 30 seconds before next batch...")
+            time.sleep(30)
     
-    # Create output directory and save detailed JSON
-    os.makedirs("results/Ragas/outputs", exist_ok=True)
-    output_json_path = os.path.join("results", "Ragas", "outputs", f"{args.ollama_model}_{args.retrieval_strategy}_responses.json")
+    # First ensure model name is properly formatted for directory naming
+    model_dir_name = re.sub(r'[^\w\-]', '_', args.ollama_model)
+
+    # Create model subdirectories
+    print("Creating organized output directories...")
+    model_output_dir = os.path.join("results", "Ragas", "outputs", model_dir_name)
+    os.makedirs(model_output_dir, exist_ok=True)
+
+    # Save detailed JSON in the model-specific directory
+    output_json_path = os.path.join(model_output_dir, f"{args.retrieval_strategy}_responses.json")
     with open(output_json_path, 'w') as f:
         json.dump(detailed_output, f, indent=4)
     print(f"Saved detailed responses to {output_json_path}")
@@ -150,14 +170,6 @@ def main():
     from benchmarks.Ragas.evaluation import clean_thinks, evaluate_results, save_metrics, plot_average_metrics
     cleaned_dataset = clean_thinks(dataset)
     
-    # First ensure model name is properly formatted for directory naming
-    model_dir_name = re.sub(r'[^\w\-]', '_', args.ollama_model)
-
-    # Create model subdirectories at the beginning of the evaluation section
-    print("Creating organized output directories...")
-    from benchmarks.Ragas.evaluation import create_model_subdirectories
-    create_model_subdirectories(model_dir_name)
-
     # Update the evaluation section to use the new functions
     print("Evaluating dataset with RAG metrics by category...")
     from ragas.llms import LangchainLLMWrapper
@@ -184,13 +196,6 @@ def main():
     image_filename = os.path.join("results", "Ragas", "images", model_dir_name, f"{args.retrieval_strategy}_radar_average.png")
     plot_average_metrics(result, image_filename)
 
-    # Save detailed JSON outputs to the outputs directory
-    detailed_output_path = os.path.join("results", "Ragas", "outputs", model_dir_name, f"{args.retrieval_strategy}_responses.json")
-    os.makedirs(os.path.dirname(detailed_output_path), exist_ok=True)
-    with open(detailed_output_path, 'w') as f:
-        json.dump(detailed_output, f, indent=4)
-    print(f"Saved detailed responses to {detailed_output_path}")
-    
     print("RAG benchmark pipeline completed.")
 
 if __name__ == "__main__":
